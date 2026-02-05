@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-graphite text-white font-body antialiased;
+}
+
+.section-padding {
+  @apply px-6 py-20 md:px-12 lg:px-20;
+}
+
+.section-title {
+  @apply text-sm uppercase tracking-[0.35em] text-mist/70 font-mono;
+}
+
+.section-heading {
+  @apply text-3xl md:text-4xl lg:text-5xl font-display font-semibold text-white;
+}
+
+.card {
+  @apply bg-steel/70 border border-line/70 rounded-2xl shadow-card;
+}
+
+.glass {
+  background: linear-gradient(135deg, rgba(21, 26, 34, 0.9), rgba(11, 14, 20, 0.95));
+  backdrop-filter: blur(12px);
+}
+
+.divider {
+  background: linear-gradient(90deg, rgba(63, 180, 255, 0), rgba(63, 180, 255, 0.6), rgba(63, 180, 255, 0));
+}
+
+.grid-overlay {
+  background-image: linear-gradient(rgba(63, 180, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(63, 180, 255, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at top, black 30%, transparent 80%);
+}
