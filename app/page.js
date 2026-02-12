@@ -1,3 +1,8 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
 const stats = [
   { label: "Go-live speed", value: "<24 hrs" },
   { label: "Synthetic defects", value: "5,000+" },
@@ -15,6 +20,25 @@ const users = [
   "Factory managers",
   "Operations leaders",
   "Quality engineers (non-AI)",
+];
+
+const materials = [
+  "Metal",
+  "Plastic",
+  "Glass",
+  "Rubber",
+  "Paper / Carton",
+  "Composite",
+];
+
+const defects = [
+  "Scratch",
+  "Dent",
+  "Crack",
+  "Discoloration",
+  "Misalignment",
+  "Contamination",
+  "Other",
 ];
 
 const comparison = [
@@ -45,6 +69,74 @@ const comparison = [
 ];
 
 export default function Home() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const progressTimerRef = useRef(null);
+  const redirectTimerRef = useRef(null);
+  const router = useRouter();
+
+  const clearSubmissionTimers = useCallback(() => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+      redirectTimerRef.current = null;
+    }
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setIsModalOpen(false);
+    setIsSubmitting(false);
+    setProgress(0);
+    clearSubmissionTimers();
+  }, [clearSubmissionTimers]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const handleKey = (event) => {
+      if (event.key === "Escape") closeModal();
+    };
+
+    document.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
+  }, [isModalOpen, closeModal]);
+
+  useEffect(() => () => clearSubmissionTimers(), [clearSubmissionTimers]);
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setProgress(0);
+
+    const duration = 5000;
+    const start = Date.now();
+
+    progressTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const next = Math.min(100, Math.round((elapsed / duration) * 100));
+      setProgress(next);
+      if (next >= 100) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+    }, 100);
+
+    redirectTimerRef.current = setTimeout(() => {
+      router.push("/test");
+    }, duration);
+  };
+
   return (
     <div className="min-h-screen bg-graphite text-white">
       <div className="relative overflow-hidden">
@@ -119,12 +211,13 @@ export default function Home() {
                 </div>
               </div>
               <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row flex-wrap items-center gap-3 sm:gap-4">
-                <a
-                  href="#contact"
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(true)}
                   className="w-full sm:w-auto text-center rounded-full bg-electric px-6 py-3 text-sm font-semibold text-graphite shadow-glow hover:bg-electricDark transition"
                 >
                   Send Us One Photo
-                </a>
+                </button>
                 <a
                   href="#contact"
                   className="w-full sm:w-auto text-center rounded-full border border-electric/40 px-6 py-3 text-sm font-semibold text-white hover:bg-electric/10 transition"
@@ -282,7 +375,7 @@ export default function Home() {
               </p>
               <div className="mt-4 rounded-2xl border border-line/70 overflow-hidden">
                 <img
-                  src="/Example1.png"
+                  src="/Example1.jpeg"
                   alt="Golden sample example"
                   className="h-38 w-full object-cover"
                 />
@@ -381,14 +474,14 @@ export default function Home() {
             </p>
           </div>
           <div className="card glass p-8 space-y-6">
-            <div className="flex items-center justify-between rounded-xl border border-line/70 bg-slate/60 px-4 py-3">
+            <div className="flex flex-col gap-3 rounded-xl border border-line/70 bg-slate/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
                 Powered by
               </p>
               <img
                 src="/Nvidia.png"
                 alt="NVIDIA logo"
-                className="h-72 w-full object-contain"
+                className="h-34 w-full object-contain sm:h-52 sm:w-auto lg:h-56"
               />
             </div>
             {[
@@ -635,19 +728,19 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <a
-                href="mailto:contact@visynex.ai"
+                href="mailto:visynex1@gmail.com"
                 className="rounded-full bg-electric px-6 py-3 text-sm font-semibold text-graphite shadow-glow hover:bg-electricDark transition"
               >
                 Send One Photo
               </a>
               <a
-                href="mailto:pilot@visynex.ai"
+                href="mailto:visynex1@gmail.com"
                 className="rounded-full border border-electric/40 px-6 py-3 text-sm font-semibold text-white hover:bg-electric/10 transition"
               >
                 Book a Pilot
               </a>
               <a
-                href="mailto:sales@visynex.ai"
+                href="mailto:visynex1@gmail.com"
                 className="rounded-full border border-line/70 px-6 py-3 text-sm font-semibold text-white hover:bg-white/10 transition"
               >
                 Contact Sales
@@ -656,6 +749,114 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8">
+          <button
+            type="button"
+            onClick={closeModal}
+            aria-label="Close modal overlay"
+            className="absolute inset-0 bg-graphite/80 backdrop-blur-sm"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="photo-modal-title"
+            className="relative w-full max-w-lg rounded-2xl border border-line/70 bg-slate/90 p-6 shadow-2xl sm:p-8"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
+                  Send One Photo
+                </p>
+                <h3
+                  id="photo-modal-title"
+                  className="mt-2 text-xl font-display text-white"
+                >
+                  Upload a sample part
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                aria-label="Close modal"
+                className="rounded-full border border-line/70 px-3 py-1 text-xs text-mist transition hover:border-electric/40 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+            <form
+              className="mt-6 space-y-4"
+              onSubmit={handleSubmit}
+            >
+              <label className="block">
+                <span className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
+                  Material
+                </span>
+                <select
+                  disabled={isSubmitting}
+                  className="mt-2 w-full rounded-xl border border-line/70 bg-graphite/60 px-4 py-3 text-sm text-white outline-none transition focus:border-electric/60 focus:ring-2 focus:ring-electric/30 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <option value="">Select material</option>
+                  {materials.map((material) => (
+                    <option key={material} value={material}>
+                      {material}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
+                  Defect
+                </span>
+                <select
+                  disabled={isSubmitting}
+                  className="mt-2 w-full rounded-xl border border-line/70 bg-graphite/60 px-4 py-3 text-sm text-white outline-none transition focus:border-electric/60 focus:ring-2 focus:ring-electric/30 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <option value="">Select defect type</option>
+                  {defects.map((defect) => (
+                    <option key={defect} value={defect}>
+                      {defect}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
+                  Upload Photo
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isSubmitting}
+                  className="mt-2 w-full rounded-xl border border-line/70 bg-graphite/60 px-4 py-3 text-sm text-mist file:mr-4 file:rounded-full file:border-0 file:bg-electric file:px-4 file:py-2 file:text-xs file:font-semibold file:text-graphite hover:file:bg-electricDark disabled:cursor-not-allowed disabled:opacity-70"
+                />
+              </label>
+              {isSubmitting && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-mist">
+                    <span>Analyzing photo...</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-graphite/70">
+                    <div
+                      className="h-full rounded-full bg-electric transition-all duration-150"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full rounded-full bg-electric px-6 py-3 text-sm font-semibold text-graphite shadow-glow transition hover:bg-electricDark disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSubmitting ? "Processing..." : "Submit"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <footer className="section-padding pt-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 border-t border-line/70 pt-8 text-xs text-mist md:flex-row">
