@@ -133,7 +133,7 @@ export default function Home() {
     }, 100);
 
     redirectTimerRef.current = setTimeout(() => {
-      router.push("/test");
+      router.push("/coming-soon");
     }, duration);
   };
 
