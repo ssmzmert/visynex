@@ -4,22 +4,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const stats = [
-  { label: "Go-live speed", value: "<24 hrs" },
-  { label: "Synthetic defects", value: "5,000+" },
-  { label: "Day-one accuracy", value: "99%" },
+  { label: "Frames per batch", value: "10,000+" },
+  { label: "Hardware capex", value: "Zero" },
+  { label: "Zero-shot deployment", value: "99.5%" },
 ];
 
 const industries = [
-  "Packaging & bottling",
-  "Automotive components",
-  "Metal fabrication",
-  "Fasteners & bearings",
+  "Embodied AI builders",
+  "Enterprise robotics OEMs",
 ];
 
 const users = [
-  "Factory managers",
-  "Operations leaders",
-  "Quality engineers (non-AI)",
+  "Lead ML engineers",
+  "Robotics CTOs",
+  "Foundation model researchers",
 ];
 
 const materials = [
@@ -44,29 +42,322 @@ const defects = [
 const comparison = [
   {
     feature: "Data requirement",
-    legacy: "Weeks of line tuning",
-    diy: "1,000+ labeled defects",
-    visynex: "1 golden photo",
+    legacy: "Manual collection loops",
+    diy: "Generic simulators",
+    visynex: "Physics-accurate API datasets",
   },
   {
-    feature: "Setup time",
-    legacy: "8-12 weeks",
-    diy: "6-10 weeks",
-    visynex: "<24 hours",
+    feature: "Scalability",
+    legacy: "Human-labeling bottlenecks",
+    diy: "Low-fidelity edge cases",
+    visynex: "10,000+ frames per batch",
   },
   {
-    feature: "Cost structure",
-    legacy: "High capex + integrator fees",
-    diy: "Hidden labeling costs",
-    visynex: "Transparent SaaS per line",
+    feature: "Physics realism",
+    legacy: "Sparse real defects",
+    diy: "Weak material realism",
+    visynex: "Semantic physical chaos control",
   },
   {
     feature: "Target user",
-    legacy: "Vision specialists",
-    diy: "AI engineers",
-    visynex: "Ops teams",
+    legacy: "Factory QA teams",
+    diy: "Simulation specialists",
+    visynex: "ML and robotics platform teams",
   },
 ];
+
+const simulatorShapeTypes = ["gear", "bearing", "bracket"];
+
+function drawRoundedRectPath(ctx, x, y, width, height, radius) {
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(x, y, width, height, radius);
+    return;
+  }
+
+  let r = radius;
+  if (width < 2 * r) r = width / 2;
+  if (height < 2 * r) r = height / 2;
+
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + width, y, x + width, y + height, r);
+  ctx.arcTo(x + width, y + height, x, y + height, r);
+  ctx.arcTo(x, y + height, x, y, r);
+  ctx.arcTo(x, y, x + width, y, r);
+}
+
+function drawGear(ctx, size) {
+  const radius = size / 2;
+  const teeth = 8;
+
+  ctx.beginPath();
+  for (let i = 0; i < teeth; i += 1) {
+    const angle = (i / teeth) * Math.PI * 2;
+    const p1x = Math.cos(angle - 0.1) * radius;
+    const p1y = Math.sin(angle - 0.1) * radius;
+    const p2x = Math.cos(angle + 0.1) * radius;
+    const p2y = Math.sin(angle + 0.1) * radius;
+    const p3x = Math.cos(angle + 0.25) * (radius * 0.7);
+    const p3y = Math.sin(angle + 0.25) * (radius * 0.7);
+    const p4x = Math.cos(angle + 0.35) * (radius * 0.7);
+    const p4y = Math.sin(angle + 0.35) * (radius * 0.7);
+
+    if (i === 0) {
+      ctx.moveTo(p1x, p1y);
+    } else {
+      ctx.lineTo(p1x, p1y);
+    }
+    ctx.lineTo(p2x, p2y);
+    ctx.lineTo(p3x, p3y);
+    ctx.lineTo(p4x, p4y);
+  }
+  ctx.closePath();
+
+  ctx.moveTo(radius * 0.3, 0);
+  ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2, true);
+}
+
+function drawBearing(ctx, size) {
+  const radius = size / 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.moveTo(radius * 0.6, 0);
+  ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2, true);
+  ctx.moveTo(radius * 0.3, 0);
+  ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2, false);
+
+  const balls = 8;
+  for (let i = 0; i < balls; i += 1) {
+    const angle = (i / balls) * Math.PI * 2;
+    const ballDistance = radius * 0.45;
+    const cx = Math.cos(angle) * ballDistance;
+    const cy = Math.sin(angle) * ballDistance;
+    ctx.moveTo(cx + radius * 0.1, cy);
+    ctx.arc(cx, cy, radius * 0.1, 0, Math.PI * 2);
+  }
+}
+
+function drawBracket(ctx, size) {
+  const width = size * 1.2;
+  const height = size * 0.5;
+  const holeDistance = width / 2 - height / 2;
+  const holeRadius = height * 0.15;
+
+  ctx.beginPath();
+  drawRoundedRectPath(ctx, -width / 2, -height / 2, width, height, height / 3);
+  ctx.moveTo(-holeDistance + holeRadius, 0);
+  ctx.arc(-holeDistance, 0, holeRadius, 0, Math.PI * 2, true);
+  ctx.moveTo(holeDistance + holeRadius, 0);
+  ctx.arc(holeDistance, 0, holeRadius, 0, Math.PI * 2, true);
+}
+
+function Sim2RealSimulator() {
+  const canvasRef = useRef(null);
+  const [chaosLevel, setChaosLevel] = useState(8);
+  const [objectVariability, setObjectVariability] = useState(7);
+  const [frameCount, setFrameCount] = useState(0);
+  const totalFramesRef = useRef(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const halfWidth = canvas.width / 2;
+    let animationFrameId = null;
+    let lastMetricUpdate = 0;
+    const shapes = [];
+    const shapeCount = objectVariability * 3;
+
+    for (let i = 0; i < shapeCount; i += 1) {
+      shapes.push({
+        x: Math.random() * canvas.width,
+        y: 40 + Math.random() * (canvas.height - 80),
+        size: 25 + Math.random() * 30,
+        speed: 1 + Math.random() * 2,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.05,
+        type: simulatorShapeTypes[Math.floor(Math.random() * simulatorShapeTypes.length)],
+        offsetY: Math.random() * 100,
+      });
+    }
+
+    const drawShape = (type, size) => {
+      if (type === "gear") drawGear(ctx, size);
+      if (type === "bearing") drawBearing(ctx, size);
+      if (type === "bracket") drawBracket(ctx, size);
+    };
+
+    const animate = (time) => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#6b7280";
+      ctx.font = '12px "Segoe UI", sans-serif';
+      ctx.fillText("DIGITAL CONCEPTION (SIM)", 20, 25);
+      ctx.fillText("PHYSICAL SYNTHESIS (REAL)", halfWidth + 20, 25);
+
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(halfWidth, 0);
+      ctx.lineTo(halfWidth, canvas.height);
+      ctx.stroke();
+
+      shapes.forEach((shape) => {
+        shape.x += shape.speed;
+        shape.rotation += shape.rotSpeed;
+        const currentY = shape.y + Math.sin(time / 500 + shape.offsetY) * 15;
+
+        if (shape.x > canvas.width + 50) {
+          shape.x = -50;
+        }
+
+        const isRightSide = shape.x > halfWidth;
+        ctx.save();
+
+        if (isRightSide) {
+          const jitterX = (Math.random() - 0.5) * chaosLevel * 1.5;
+          const jitterY = (Math.random() - 0.5) * chaosLevel * 1.5;
+          const renderX = shape.x + jitterX;
+          const renderY = currentY + jitterY;
+
+          ctx.translate(renderX, renderY);
+          ctx.rotate(shape.rotation);
+          ctx.fillStyle = "#9ca3af";
+          ctx.strokeStyle = "#4b5563";
+          ctx.lineWidth = 1.5;
+
+          drawShape(shape.type, shape.size);
+          ctx.fill("evenodd");
+          ctx.stroke();
+
+          ctx.restore();
+          ctx.save();
+
+          if (Math.random() < chaosLevel * 0.08) {
+            ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+            ctx.fillRect(
+              renderX + (Math.random() * 80 - 40),
+              renderY + (Math.random() * 80 - 40),
+              2,
+              2
+            );
+          }
+
+          const sensorError = chaosLevel * 2;
+          const boxSize = shape.size * 1.3 + sensorError;
+          ctx.strokeStyle = "#ef4444";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([4, 2]);
+          ctx.strokeRect(
+            renderX - boxSize / 2,
+            renderY - boxSize / 2,
+            boxSize,
+            boxSize
+          );
+          ctx.setLineDash([]);
+
+          totalFramesRef.current += chaosLevel * 0.1;
+        } else {
+          ctx.translate(shape.x, currentY);
+          ctx.rotate(shape.rotation);
+          ctx.strokeStyle = "#38bdf8";
+          ctx.lineWidth = 1.5;
+          drawShape(shape.type, shape.size);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      });
+
+      if (time - lastMetricUpdate > 120) {
+        lastMetricUpdate = time;
+        setFrameCount(Math.floor(totalFramesRef.current));
+      }
+
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [chaosLevel, objectVariability]);
+
+  return (
+    <section className="section-padding pt-0" id="simulator">
+      <div className="mx-auto max-w-6xl">
+        <div className="card glass p-5 sm:p-8">
+          <div className="text-center">
+            <h2 className="text-2xl sm:text-3xl font-display font-semibold tracking-tight">
+              Sim2Real Data Generation
+            </h2>
+            <p className="mt-2 text-sm text-mist">
+              Visualizing procedural physical chaos and auto-annotation for Embodied AI.
+            </p>
+          </div>
+
+          <canvas
+            ref={canvasRef}
+            width={852}
+            height={400}
+            className="mt-6 block h-[300px] w-full rounded-xl border border-line/80 sm:h-[400px]"
+            style={{ background: "linear-gradient(90deg, #111827 50%, #1f2937 50%)" }}
+          />
+
+          <div className="mt-6 grid gap-6 border-t border-line/70 pt-6 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="chaosSlider"
+                className="text-xs font-medium uppercase tracking-[0.08em] text-mist/80"
+              >
+                Physical Chaos Complexity (Noise & Drift)
+              </label>
+              <input
+                id="chaosSlider"
+                type="range"
+                min={1}
+                max={10}
+                value={chaosLevel}
+                onChange={(event) => setChaosLevel(Number(event.target.value))}
+                className="w-full accent-electric"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <label
+                htmlFor="countSlider"
+                className="text-xs font-medium uppercase tracking-[0.08em] text-mist/80"
+              >
+                Object Count / Variability
+              </label>
+              <input
+                id="countSlider"
+                type="range"
+                min={1}
+                max={10}
+                value={objectVariability}
+                onChange={(event) => setObjectVariability(Number(event.target.value))}
+                className="w-full accent-electric"
+              />
+            </div>
+            <div className="rounded-xl border border-line/80 bg-graphite/80 px-5 py-4 text-center lg:min-w-[260px]">
+              <p className="text-2xl font-display font-semibold text-electric">
+                {frameCount.toLocaleString()}
+              </p>
+              <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-mist/70">
+                Auto-Annotated Frames Generated
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -182,32 +473,33 @@ export default function Home() {
           <div className="mx-auto grid max-w-6xl gap-8 sm:gap-12 px-4 sm:px-6 lg:px-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
               <p className="section-title text-sm sm:text-base">
-                Zero-Shot Quality Control
+                Sim2Real Data Infrastructure
               </p>
               <h1 className="mt-4 sm:mt-6 text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-display font-semibold leading-tight text-white">
-                Automating Quality. Zero Data Required.
+                Procedurally Generating the Physical World via API.
               </h1>
               <p className="mt-4 sm:mt-6 text-base sm:text-lg text-mist leading-relaxed">
-                Deploy AI quality control from a single photo. No datasets. No
-                waiting for defects. Live in &lt;24 hours with edge-native
-                deployment built for factory floors.
+                Synthetic data infrastructure bridging the &quot;Sim2Real&quot;
+                gap for Embodied AI. Upload a CAD file, inject semantic
+                physical chaos, and deliver 10,000+ auto-annotated training
+                frames directly into your CI/CD pipeline.
               </p>
               <div className="mt-6 sm:mt-8 grid gap-2 sm:gap-3 text-xs sm:text-sm text-mist">
                 <div className="flex items-center gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric flex-shrink-0" />{" "}
-                  One photo input
+                  Frictionless API &amp; CAD (.STEP) Ingestion
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric flex-shrink-0" />{" "}
-                  99% accuracy on day one
+                  Absolute Parametric Control via JSON
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric flex-shrink-0" />{" "}
-                  Edge-native (NVIDIA Jetson)
+                  Zero Hardware CapEx
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric flex-shrink-0" />{" "}
-                  No data leaves the factory
+                  Direct AWS S3 / VPC Injection
                 </div>
               </div>
               <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row flex-wrap items-center gap-3 sm:gap-4">
@@ -216,13 +508,13 @@ export default function Home() {
                   onClick={() => setIsModalOpen(true)}
                   className="w-full sm:w-auto text-center rounded-full bg-electric px-6 py-3 text-sm font-semibold text-graphite shadow-glow hover:bg-electricDark transition"
                 >
-                  Send Us One Photo
+                  Start Frictionless Trial
                 </button>
                 <a
                   href="#contact"
                   className="w-full sm:w-auto text-center rounded-full border border-electric/40 px-6 py-3 text-sm font-semibold text-white hover:bg-electric/10 transition"
                 >
-                  Book a Pilot Demo
+                  Book Enterprise Demo
                 </a>
               </div>
               <div className="mt-10 sm:mt-12 grid grid-cols-3 gap-4 sm:gap-6 border-t border-line/70 pt-6 sm:pt-8">
@@ -248,10 +540,10 @@ export default function Home() {
               </div>
               <div className="flex items-center justify-between mt-4">
                 <p className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
-                  Live Command Deck
+                  Developer Studio
                 </p>
                 <span className="rounded-full border border-electric/40 px-3 py-1 text-xs text-electric">
-                  Edge Agent
+                  API Pipeline
                 </span>
               </div>
               <div className="mt-6 sm:mt-8 space-y-4 sm:space-y-6">
@@ -260,10 +552,10 @@ export default function Home() {
                     Input
                   </p>
                   <p className="mt-2 sm:mt-3 text-base sm:text-lg font-display">
-                    1 Golden Sample Photo
+                    Baseline 3D CAD (.STEP)
                   </p>
                   <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-mist">
-                    Captured on the production line.
+                    Air-gapped secure ingestion.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-line/80 bg-slate/70 p-4 sm:p-5">
@@ -271,20 +563,22 @@ export default function Home() {
                     Engine
                   </p>
                   <p className="mt-2 sm:mt-3 text-base sm:text-lg font-display">
-                    Synthetic Defect Generator
+                    Generative Synthesis Engine
                   </p>
                   <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-mist">
-                    Physics-aware variations for materials, geometry, and
-                    lighting.
+                    Mathematical reconstruction of digital twins via ephemeral
+                    compute.
                   </p>
                 </div>
                 <div className="rounded-2xl border border-line/80 bg-slate/70 p-5">
                   <p className="text-xs text-mist/80 uppercase tracking-[0.3em]">
                     Outcome
                   </p>
-                  <p className="mt-3 text-lg font-display">Deployed QC Agent</p>
+                  <p className="mt-3 text-lg font-display">
+                    Auto-Annotated Datasets
+                  </p>
                   <p className="mt-2 text-sm text-mist">
-                    Detects and rejects defects in real time.
+                    YOLO/COCO formats delivered securely via webhook.
                   </p>
                 </div>
               </div>
@@ -293,7 +587,7 @@ export default function Home() {
                   Visual Formula
                 </p>
                 <p className="mt-3 text-xl font-display">
-                  1 Photo → Dataset → Deployed Agent
+                  1 CAD File → Procedural Generation → Pipeline Injection
                 </p>
               </div>
             </div>
@@ -301,18 +595,21 @@ export default function Home() {
         </section>
       </div>
 
+      <Sim2RealSimulator />
+
       <section className="section-padding" id="problem">
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <p className="section-title">The Cold Start Barrier</p>
+            <p className="section-title">The Data Scarcity Paradox</p>
             <h2 className="section-heading mt-4">
-              Most factories can’t train AI because defects are rare.
+              Foundation models are starving for edge-case physical data.
             </h2>
             <p className="mt-6 text-mist leading-relaxed">
-              90% of factories remain unautomated for quality inspection.
-              Traditional AI needs thousands of defect images. But defects are
-              exactly what high-performing lines avoid. Teams end up waiting
-              months, projects stall, and initiatives get abandoned.
+              Training robotic manipulation policies via manual human labeling
+              is fundamentally unscalable. Basic 3D simulation engines fail to
+              solve this because they lack accurate industrial material
+              physics. Builders lack a scalable, purely software-driven data
+              layer.
             </p>
           </div>
           <div className="card p-8">
@@ -320,9 +617,11 @@ export default function Home() {
               <div className="flex items-start gap-4">
                 <div className="h-3 w-3 rounded-full bg-red-500 mt-2" />
                 <div>
-                  <p className="font-display text-lg">Waiting for Defects</p>
+                  <p className="font-display text-lg">
+                    Manual Labeling Bottleneck
+                  </p>
                   <p className="text-sm text-mist">
-                    Manual collection, scrap accumulation, zero momentum.
+                    Expensive, slow annotation cycles limit model progress.
                   </p>
                 </div>
               </div>
@@ -330,15 +629,17 @@ export default function Home() {
               <div className="flex items-start gap-4">
                 <div className="h-3 w-3 rounded-full bg-electric mt-2" />
                 <div>
-                  <p className="font-display text-lg">Instant Readiness</p>
+                  <p className="font-display text-lg">
+                    Software-Defined Data Layer
+                  </p>
                   <p className="text-sm text-mist">
-                    One photo unlocks a full defect library on day one.
+                    Procedural synthesis generates edge-case coverage on demand.
                   </p>
                 </div>
               </div>
             </div>
             <p className="mt-8 text-xs uppercase tracking-[0.3em] text-mist/60 font-mono">
-              Stop waiting. Start inspecting.
+              Replace collection loops with API generation.
             </p>
           </div>
         </div>
@@ -349,23 +650,25 @@ export default function Home() {
           <p className="section-title">The Breakthrough</p>
           <div className="mt-6 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <h2 className="section-heading">Zero-Shot Quality Control</h2>
+              <h2 className="section-heading">
+                Solving the Sim2Real Bottleneck
+              </h2>
               <p className="mt-6 text-mist leading-relaxed">
-                We don’t wait for defects — we generate them. From one golden
-                sample, Visynex produces 5,000+ realistic defect scenarios that
-                respect the physics, material, and geometry of your parts.
-                Models are trained against true variability and arrive
-                production-ready with &gt;99% confidence.
+                Visynex replaces physical data collection with a scalable API.
+                Define physical constraints (lighting, material reflectivity,
+                spatial anomalies) via a JSON payload, and our engine securely
+                injects thousands of physically accurate frames directly into
+                your cloud storage.
               </p>
               <div className="mt-8 flex flex-wrap gap-4">
                 <span className="rounded-full border border-electric/40 px-4 py-2 text-xs uppercase tracking-[0.3em] text-electric">
-                  Physics-aware synthesis
+                  Semantic payload control
                 </span>
                 <span className="rounded-full border border-electric/40 px-4 py-2 text-xs uppercase tracking-[0.3em] text-electric">
-                  No defect waiting time
+                  Ephemeral secure compute
                 </span>
                 <span className="rounded-full border border-electric/40 px-4 py-2 text-xs uppercase tracking-[0.3em] text-electric">
-                  Day-one deployment
+                  Direct cloud injection
                 </span>
               </div>
             </div>
@@ -383,19 +686,19 @@ export default function Home() {
               <div className="mt-6 space-y-4">
                 <div className="flex items-center justify-between border-b border-line/70 pb-4">
                   <p className="text-sm text-mist">Input</p>
-                  <p className="font-display">1 golden sample</p>
+                  <p className="font-display">1 CAD file</p>
                 </div>
                 <div className="flex items-center justify-between border-b border-line/70 pb-4">
-                  <p className="text-sm text-mist">Synthetic library</p>
-                  <p className="font-display">5,000+ scenarios</p>
+                  <p className="text-sm text-mist">Generated output</p>
+                  <p className="font-display">10,000+ frames</p>
                 </div>
                 <div className="flex items-center justify-between border-b border-line/70 pb-4">
-                  <p className="text-sm text-mist">Confidence</p>
-                  <p className="font-display">&gt;99% accuracy</p>
+                  <p className="text-sm text-mist">Formats</p>
+                  <p className="font-display">YOLO / COCO</p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-mist">Deployment</p>
-                  <p className="font-display">Edge agent live</p>
+                  <p className="text-sm text-mist">Delivery</p>
+                  <p className="font-display">Webhook + S3/VPC</p>
                 </div>
               </div>
               <div className="mt-8 rounded-xl border border-electric/40 bg-electric/10 p-4">
@@ -403,7 +706,7 @@ export default function Home() {
                   Formula
                 </p>
                 <p className="mt-2 text-lg font-display">
-                  1 Photo → Dataset → Deployed Agent
+                  1 CAD File → Procedural Generation → Pipeline Injection
                 </p>
               </div>
             </div>
@@ -415,25 +718,25 @@ export default function Home() {
         <div className="mx-auto max-w-6xl">
           <p className="section-title">How It Works</p>
           <h2 className="section-heading mt-4">
-            No-code pipeline. Edge-native deployment.
+            Zero-hardware pipeline. Direct CI/CD injection.
           </h2>
           <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[
               {
-                title: "Upload golden sample",
-                text: "Capture a single reference photo on the production line.",
+                title: "Secure ingestion (.STEP / CAD)",
+                text: "Upload baseline 3D assets through air-gapped secure channels.",
               },
               {
-                title: "Define constraints",
-                text: "Use the no-code wizard to set tolerances and defect types.",
+                title: "Semantic payload configuration (JSON)",
+                text: "Set lighting, materials, anomalies, and physical constraints.",
               },
               {
-                title: "Generate labeled data",
-                text: "Our synthesis engine creates realistic defect variants.",
+                title: "Generative semantic injection",
+                text: "Create physically accurate edge cases with auto-annotation.",
               },
               {
-                title: "Deploy edge agent",
-                text: "Jetson-based agent detects and rejects defects in real time.",
+                title: "Direct pipeline webhook (S3/GCS)",
+                text: "Stream datasets into your training stack with zero manual ops.",
               },
             ].map((step, index) => (
               <div key={step.title} className="card p-6">
@@ -447,13 +750,13 @@ export default function Home() {
           </div>
           <div className="mt-8 flex flex-wrap gap-3 text-sm text-mist">
             <span className="rounded-full border border-line/70 px-4 py-2">
-              No bounding boxes
+              Zero hardware setup
             </span>
             <span className="rounded-full border border-line/70 px-4 py-2">
-              No AI engineers
+              API-first orchestration
             </span>
             <span className="rounded-full border border-line/70 px-4 py-2">
-              No Python scripts
+              CI/CD-ready delivery
             </span>
           </div>
         </div>
@@ -462,15 +765,14 @@ export default function Home() {
       <section className="section-padding" id="edge">
         <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1fr_1fr]">
           <div>
-            <p className="section-title">Edge & Privacy</p>
+            <p className="section-title">Zero Exposure</p>
             <h2 className="section-heading mt-4">
-              Built for factories that cannot leak data.
+              Air-gapped security architecture.
             </h2>
             <p className="mt-6 text-mist leading-relaxed">
-              Visynex runs locally on NVIDIA Jetson hardware. Images never leave
-              the factory; only metadata syncs for monitoring and audit trails.
-              Connect to PLCs or robotic arms for automatic rejection without
-              introducing new latency on the line.
+              Synthesis runs on isolated, ephemeral cloud compute clusters.
+              Rendering memory is purged instantly upon delivery. We never train
+              shared foundation models on your proprietary IP.
             </p>
           </div>
           <div className="card glass p-8 space-y-6">
@@ -485,10 +787,10 @@ export default function Home() {
               />
             </div>
             {[
-              "Jetson deployment with deterministic latency",
-              "Air-gapped support and secure updates",
-              "Only metadata synced to the cloud",
-              "PLC and robotic arm integration",
+              "Isolated ephemeral workloads per dataset job",
+              "Memory purged immediately after delivery",
+              "No shared-model training on proprietary assets",
+              "Secure webhook delivery to private storage",
             ].map((item) => (
               <div key={item} className="flex items-start gap-3">
                 <span className="mt-1 h-2 w-2 rounded-full bg-electric" />
@@ -503,12 +805,12 @@ export default function Home() {
         <div className="mx-auto max-w-6xl">
           <p className="section-title">Who It’s For</p>
           <h2 className="section-heading mt-4">
-            SME & mid-market factories ready to automate.
+            Embodied AI builders and enterprise robotics OEMs.
           </h2>
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             <div className="card p-8">
               <p className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
-                Industries
+                Target Segments
               </p>
               <ul className="mt-6 space-y-4 text-mist">
                 {industries.map((item) => (
@@ -538,13 +840,14 @@ export default function Home() {
         <div className="mx-auto max-w-6xl">
           <p className="section-title">Visynex vs The Market</p>
           <h2 className="section-heading mt-4">
-            Competitors sell tools. We deliver outcomes.
+            Manual collection is unscalable. Simulators lack physics. We provide
+            both.
           </h2>
           <div className="mt-10 card overflow-hidden">
             <div className="grid grid-cols-4 gap-4 border-b border-line/70 bg-slate/80 p-6 text-xs uppercase tracking-[0.2em] text-mist">
               <span>Category</span>
-              <span>Legacy Vision</span>
-              <span>DIY Labeling</span>
+              <span>Manual Collection</span>
+              <span>Basic Simulators</span>
               <span className="text-electric">Visynex</span>
             </div>
             {comparison.map((row) => (
@@ -566,48 +869,48 @@ export default function Home() {
         <div className="mx-auto max-w-6xl">
           <p className="section-title">Business Model</p>
           <h2 className="section-heading mt-4">
-            Hybrid SaaS built for production lines.
+            API-First economics built for massive scalability.
           </h2>
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             <div className="card p-8">
               <p className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
-                Production Assurance Pilot
+                Pay-Per-Dataset API
               </p>
-              <p className="mt-4 text-3xl font-display">$2,500 setup</p>
-              <p className="mt-2 text-mist">$950/month per line</p>
+              <p className="mt-4 text-3xl font-display">$5,000 flat fee</p>
+              <p className="mt-2 text-mist">Per generated dataset batch</p>
               <ul className="mt-6 space-y-3 text-sm text-mist">
                 <li className="flex items-start gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric mt-2" />{" "}
-                  Hardware + deployment included
+                  CAD and JSON payload ingestion
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric mt-2" />{" "}
-                  Retraining and drift monitoring
+                  10,000+ frame generation batches
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric mt-2" />{" "}
-                  24/7 support for plant teams
+                  Auto-annotation + secure delivery
                 </li>
               </ul>
             </div>
             <div className="card p-8">
               <p className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
-                Visynex Studio (Add-On)
+                Enterprise SaaS License
               </p>
-              <p className="mt-4 text-3xl font-display">$5,000 per dataset</p>
-              <p className="mt-2 text-mist">For enterprise AI teams</p>
+              <p className="mt-4 text-3xl font-display">Continuous API access</p>
+              <p className="mt-2 text-mist">For high-throughput ML platforms</p>
               <ul className="mt-6 space-y-3 text-sm text-mist">
                 <li className="flex items-start gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric mt-2" />{" "}
-                  Synthetic dataset generation
+                  Programmatic batch orchestration
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric mt-2" />{" "}
-                  Advanced defect libraries
+                  Dedicated VPC and governance controls
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="h-2 w-2 rounded-full bg-electric mt-2" />{" "}
-                  Integration with internal ML stacks
+                  SLA-backed enterprise support
                 </li>
               </ul>
             </div>
@@ -617,25 +920,24 @@ export default function Home() {
 
       <section className="section-padding" id="traction">
         <div className="mx-auto max-w-6xl">
-          <p className="section-title">Validation & Traction</p>
+          <p className="section-title">Validation</p>
           <div className="mt-6 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <h2 className="section-heading">
-                Proof from real production lines.
-              </h2>
+              <h2 className="section-heading">API telemetry and zero-shot deployment.</h2>
               <p className="mt-6 text-mist leading-relaxed">
-                A pilot is signed with an industrial manufacturer. Visynex
-                detected defects that manual collection could not capture,
-                achieving 99.5% detection on day one with zero downtime for data
-                collection.
+                OMSA Automotive utilized our standardized API to train their
+                visual control policies. The Embodied AI successfully identified
+                structural anomalies on Day 1 without ever seeing a real-world
+                defect, achieving 99.5% accuracy trained entirely on Visynex
+                data.
               </p>
             </div>
             <div className="card glass p-8 space-y-4">
               {[
-                "Pilot signed with industrial manufacturer",
-                "Real defect detection where manual collection failed",
-                "99.5% detection rate on day one",
-                "Zero downtime for data collection",
+                "Standardized API integrated in production telemetry",
+                "Day 1 anomaly detection without real defect history",
+                "99.5% zero-shot deployment accuracy",
+                "Training data generated entirely via Visynex",
               ].map((item) => (
                 <div key={item} className="flex items-start gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-electric" />
@@ -651,7 +953,7 @@ export default function Home() {
         <div className="mx-auto max-w-6xl">
           <p className="section-title">Go-To-Market</p>
           <h2 className="section-heading mt-4">
-            The Trojan Horse offer that shortens the sales cycle.
+            The Frictionless Trial that proves Sim2Real efficacy.
           </h2>
           <div className="mt-10 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
             <div className="card p-8">
@@ -661,27 +963,25 @@ export default function Home() {
               <ol className="mt-6 space-y-4 text-mist">
                 <li className="flex items-start gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-electric" />{" "}
-                  Client sends 1 photo
+                  ML engineer uploads 1 CAD file
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-electric" /> We
-                  return a video detecting 50 defects
+                  inject 50 free edge-cases to their AWS S3 bucket
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="mt-1 h-2 w-2 rounded-full bg-electric" />{" "}
-                  Instant proof builds momentum
+                  Validated Sim2Real fit before enterprise rollout
                 </li>
               </ol>
             </div>
             <div className="card glass p-8">
               <p className="text-xs uppercase tracking-[0.3em] text-mist/70 font-mono">
-                Regional Focus
+                Deployment Pattern
               </p>
               <div className="mt-6 space-y-4 text-mist">
-                <p className="text-sm">Turkey industrial zones</p>
-                <p className="text-sm">
-                  Saudi Arabia manufacturing hubs (Vision 2030)
-                </p>
+                <p className="text-sm">Self-serve API onboarding</p>
+                <p className="text-sm">Enterprise expansion via telemetry proof</p>
               </div>
             </div>
           </div>
@@ -693,13 +993,13 @@ export default function Home() {
           <p className="section-title">Vision</p>
           <div className="mt-6 card glass p-10">
             <h2 className="section-heading">
-              From visual inspection to autonomous manufacturing.
+              The Sovereign Data Flywheel for the physical world.
             </h2>
             <p className="mt-6 text-mist leading-relaxed">
-              Visynex is building the intelligence layer that allows factories
-              to adapt and correct themselves. We start with vision because
-              every defect is visible before it becomes expensive. Next comes
-              closed-loop automation.
+              Visynex is not just generating static datasets; we are building
+              the continuous data engine for automation developers. As robots
+              encounter new anomalies, engineers ping our API to generate
+              instant patch datasets.
             </p>
             <div className="mt-8 rounded-2xl border border-line/70 overflow-hidden">
               <img
@@ -709,7 +1009,7 @@ export default function Home() {
               />
             </div>
             <p className="mt-8 text-xl font-display text-white">
-              “Today we flag defects. Tomorrow we correct the machines.”
+              “Continuous synthetic data closes the Sim2Real loop.”
             </p>
           </div>
         </div>
@@ -720,18 +1020,18 @@ export default function Home() {
           <div className="card glass p-10 text-center">
             <p className="section-title">Ready to Deploy</p>
             <h2 className="section-heading mt-4">
-              Join the Zero-Shot Revolution.
+              Build the Next Generation of Embodied AI.
             </h2>
             <p className="mt-4 text-mist">
-              Send us a single photo and see how Visynex performs on your line
-              in under 24 hours.
+              Upload a baseline asset to our API and inject physically accurate
+              edge cases directly into your training pipeline today.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4">
               <a
                 href="mailto:visynex1@gmail.com"
                 className="rounded-full bg-electric px-6 py-3 text-sm font-semibold text-graphite shadow-glow hover:bg-electricDark transition"
               >
-                Send One Photo
+                Access Developer Portal
               </a>
               <a
                 href="mailto:visynex1@gmail.com"
@@ -869,7 +1169,7 @@ export default function Home() {
             <p>© 2026 Visynex AI Systems. All rights reserved.</p>
           </div>
           <p className="font-mono">
-            Edge-native quality control for modern manufacturing.
+            The Sim2Real data layer for industrial automation.
           </p>
         </div>
       </footer>
